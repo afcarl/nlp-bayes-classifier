@@ -24,6 +24,21 @@ def get_probability_w_given_c(word, dictionary):
 
   return levenshtein_counters
 
+def get_probability_map_w_given_c(mistakes_file):
+  lines = [line.strip().split(';') for line in open(mistakes_file)]
+  levenshtein_counters = {}
+  for line in lines:
+    dist = levenshtein(unicode(line[0], "utf-8"), unicode(line[1], "utf-8"))
+    if dist not in levenshtein_counters:
+      levenshtein_counters[ dist ] = 1.
+    else:
+      levenshtein_counters[ dist ] += 1.
+
+  for counter in levenshtein_counters:
+    levenshtein_counters[counter] /= len(lines)
+
+  return levenshtein_counters
+
 def get_probability_function_c(corpus, dictionary):
   words_in_corpus = 0
   words_counters = {}
@@ -49,8 +64,8 @@ def get_probability_function_c(corpus, dictionary):
 
   return get_probability_c
 
-def bayes(word, corpus, dictionary):
-  probability_w_given_c = get_probability_w_given_c(word, dictionary)
+def bayes(word, corpus, dictionary, verbose=False):
+  probability_w_given_c = get_probability_map_w_given_c('test/bledy.txt')
   probability_function_c = get_probability_function_c(corpus, dictionary)
 
   lines = [line.strip() for line in open(dictionary)]
@@ -59,9 +74,12 @@ def bayes(word, corpus, dictionary):
     levenshtein_distance = levenshtein(unicode(fix_word, "utf-8"), word)
     probability_w = probability_w_given_c[levenshtein_distance] if levenshtein_distance in probability_w_given_c else 0
     probability_c = probability_function_c(fix_word)
-    fixes[fix_word] = probability_w*probability_c
-  for line, score in nlargest(10, fixes.items(), key=itemgetter(1)):
-    print line, " : ", score
+    fixes[fix_word] = probability_w**5*probability_c
+
+  if verbose:
+    for line, score in nlargest(20, fixes.items(), key=itemgetter(1)):
+      print line, " : ", score
+
   return max(fixes.iteritems(), key=itemgetter(1))[0]
 
 
@@ -71,7 +89,7 @@ if __name__ == '__main__':
     corpus = sys.argv[2]
     dictionary = sys.argv[3]
 
-    print bayes(word, corpus, dictionary)
+    print bayes(word, corpus, dictionary, verbose=True)
 
   else:
     print("python stats.py [dictionary] [word2]")
